@@ -56,55 +56,74 @@ grid = go.Scatter3d(
 	mode='markers',
 	marker=dict(size=1, color='black')
 )
-#fig.add_trace(grid)
-	
+# Remove trace
+#fig.data.remove(fig.data[0])
 #-------------------------------------------------------------------------------------------------
 # Definir el diseño de la aplicación
 app.layout = html.Div(children=
 	[
 		# titulo
-		html.H1(children='Visualización de cajas 3D'),
-
-		# 3D principal
-		dcc.Graph
-		(
-			id='cajas-3d',
-			figure=fig,
-			style={'width': '90vh', 'height': '90vh'},
-			config={'responsive': False},
-		),
-
-		# Div Horizontal con slider de grid size
+		html.H1(children='Visualization tool for 3D detecion pipeline'),
+		
+		# First container: world with 3D bboxes
 		html.Div
-		([
-			html.Label('Tamaño del grid (metros)'),
-			dcc.Slider(
-				id='slider-grid-size',
-				min=10,
-				max=100,
-				step=10,
-				value=50,
-				marks={size: str(size) for size in [10, 30, 50, 70, 90, 100]}
-			)
-		], 
-		style={'width': '50%', 'margin': 'auto'}
-		),
+        ([
+	
+			html.H2(children='Visualización de cajas 3D'),
 
-		# Div Horizontal con slider de tiempo
-		html.Div
-		([
-			html.Label('Frame'),
-			dcc.Slider(
-				id='slider-frame',
-				min=0,
-				max=len(frame_list)-1,
-				step=1,
-				value=0,
-				marks={size: str(size) for size in np.arange(0, len(frame_list), 1).tolist()}
+			# Div Vertical con Visualizador de cajas y slider de grid size
+			html.Div
+			(
+				style={'width': '50%', 'margin': 'auto', 'display': 'flex'},
+				children=[
+				# 3D principal
+				dcc.Graph
+				(
+					id='cajas-3d',
+					figure=fig,
+					style={'width': '90vh', 'height': '90vh'},
+					config={'responsive': False},
+				),
+
+				# Slider vertical con escala del grafico
+				html.Div(
+				style={
+					'display': 'flex',
+					'flex-direction': 'column',
+					'flex': '1',
+					'margin': 'auto'
+				},
+				children=[
+				html.Label('Tamaño del grid (metros)'),
+				dcc.Slider(
+					id='slider-grid-size',
+					min=10,
+					max=100,
+					step=10,
+					value=50,
+					marks={size: str(size) for size in [10, 30, 50, 70, 90, 100]},
+					vertical=True
+				),]
+				)
+				]
+			), 
+
+			# Div Horizontal con slider de tiempo
+			html.Div
+			([
+				html.Label('Frame'),
+				dcc.Slider(
+					id='slider-frame',
+					min=0,
+					max=len(frame_list)-1,
+					step=1,
+					value=0,
+					marks={size: str(size) for size in np.arange(0, len(frame_list), 1).tolist()}
+				)
+			], 
+			style={'width': '50%', 'margin': 'auto'}
 			)
-		], 
-		style={'width': '50%', 'margin': 'auto'}
-		)
+		])
 ])
 
 
@@ -134,28 +153,26 @@ def update_grid_size(new_grid_size, frame_value):
 		aspectmode= 'cube'
 		),
 		autosize=False,
-   	 	width=800,
-		height=800
 	)
 
 	# Crear el trazo del nuevo grid
-	new_grid = go.Scatter3d(
-		x=np.arange(grid_x_min, grid_x_max, grid_res),
-		y=np.arange(grid_y_min, grid_y_max, grid_res),
-		z=np.arange(grid_z_min, grid_z_max, grid_res),
-		mode='markers',
-		marker=dict(size=1, color='black')
-	)
+	#new_grid = go.Scatter3d(
+	#	x=np.arange(grid_x_min, grid_x_max, grid_res),
+	#	y=np.arange(grid_y_min, grid_y_max, grid_res),
+	#	z=np.arange(grid_z_min, grid_z_max, grid_res),
+	#	mode='markers',
+	#	marker=dict(size=1, color='black')
+	#)
 
 	# Crear una nueva tupla de fig.data con el nuevo grid
-	new_data = fig.data[:1] + (new_grid,) + fig.data[2:]
+	#new_data = fig.data[:1] + (new_grid,) + fig.data[2:]
+	new_data = fig.data[:1] + fig.data[2:]
 
 	# Crear una nueva figura con la nueva tupla de fig.data
 	new_fig = go.Figure(data=new_data, layout=fig.layout)
 
 	new_fig = utils.draw_frame(data_dir, frame_list, frame_value, new_fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
 	frame = frame_value
-
 	# Devolver la nueva figura
 	return new_fig
 
