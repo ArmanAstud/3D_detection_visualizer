@@ -13,21 +13,38 @@ import plotly.graph_objs as go
 
 
 class Obstacle():
-	def __init__(self, df):
+	def __init__(self, df, coordinate_system):
 		self.df = df
+		self.coordinate_system = coordinate_system
 
-		self.id = df['id']
-		
-		self.x_center	= df['x']
-		self.y_center	= df['y']
-		self.z_center	= df['z']
-		self.yaw		= df['yaw']
+		if 'id' in df.keys():
+			self.id = df['id']
+		else:
+			self.id = -1.
 
+		if self.coordinate_system == 'camera_coordinate_system':
+			# TO DO: Perform camera2lidar projection
+			self.x_center	= df['z']
+			self.y_center	= -df['y']
+			self.z_center	= -df['x']
+			self.yaw		= df['yaw']
+		elif self.coordinate_system == 'lidar_coordinate_system':
+			self.x_center	= df['x']
+			self.y_center	= df['y']
+			self.z_center	= df['z']
+			self.yaw		= df['yaw']
+		else:
+			print("Coordinate System: {} NOT implemented!".format(self.coordinate_system))
+			sys.exit(1)
 		self.w 	= df['w']
 		self.l 	= df['l']
 		self.h 	= df['h']
 
-		self.score = df['score']
+		if 'score' in df.keys():
+			self.score = df['score']
+		else:
+			self.score = -1.
+
 		self.label = df['label']
 
 	def print_obstacle(self):
@@ -35,18 +52,18 @@ class Obstacle():
 		print(self.df)
 		print('------\n')
 		
-
-def return_vertex(df, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
+################################ 3D BOXES ################################
+def return_vertex(df, coordinate_system):
 	all_vertex = []
 	all_labels = []
 	all_obstacles = []
-	#print(df)
+
 	for i in range(len(df)):
 		# Parser obstacle
-		obstacle = Obstacle(df.iloc[int(i)])
-		obstacle.print_obstacle()
+		obstacle = Obstacle(df.iloc[int(i)], coordinate_system)
+		#obstacle.print_obstacle()
 
-		id_box	 = obstacle.id
+		id_box	 = int(obstacle.id)
 		x_center = obstacle.x_center
 		y_center = obstacle.y_center
 		z_center = obstacle.z_center
@@ -92,18 +109,18 @@ def return_vertex(df, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
 		])
 
 		all_vertex.append(vertices)
-		all_labels.append('{}-{}: {:.3f}'.format(df['label'][i], id_box, df['score'][i]))
+		all_labels.append('{}-{}: {:.3f}'.format(obstacle.label, id_box, obstacle.score))
 
 	return all_vertex, all_labels
 
-def draw_annotations_frame(data_dir, annots_format, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
+def draw_annotations_frame(data_dir, annots_format, coordinate_system, frame_list, frame, fig):
 
 	if frame_list is None: return fig
 
 	df = pd.read_csv(os.path.join(data_dir, frame_list[frame]), delimiter=' ', names=annots_format)
 
 	# Calcular los vertices de la caja
-	all_vertex, all_labels = return_vertex(df, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
+	all_vertex, all_labels = return_vertex(df, coordinate_system)
 	for i, _ in enumerate(all_vertex):
 		vertices = all_vertex[i]
 		label = all_labels[i]
@@ -120,3 +137,31 @@ def draw_annotations_frame(data_dir, annots_format, frame_list, frame, fig, grid
 		fig.add_trace(faces)
 
 	return fig
+
+################################ LiDAR ################################
+def draw_lidar(lidar_data_path, lidar_frame_list, frame, lidar_res):
+	
+	filename = os.path.join(lidar_data_path, lidar_frame_list[frame])
+	points = load_lidar_kitti(filename)
+
+	PC_scatter = go.Scatter3d(
+		x=points["x"],
+		y=points["y"],
+		z=points["z"],
+		mode='markers',
+		marker=dict(
+			size=lidar_res,
+			color=[0,0,0],
+			opacity=0.3
+		)
+	)
+
+	return PC_scatter
+
+def load_lidar_kitti(filename):
+	dt = np.dtype([('x', '<f4'), ('y', '<f4'), ('z', '<f4'), ('i', '<f4')])
+	points = np.fromfile(filename, dtype=dt)
+
+	# increase Z of all points -> height of the Sensor
+	points["z"] += 1.73
+	return points

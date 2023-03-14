@@ -10,6 +10,7 @@ from dash import html
 from dash.dependencies import Input, Output
 
 import plotly.graph_objs as go
+import dash_daq as daq
 
 import utils
 
@@ -25,8 +26,13 @@ parser = argparse.ArgumentParser(description='3D_detection_visualizer.', fromfil
 
 # Annotations
 parser.add_argument('--annotations',		type=str_to_bool,	help='flag to read annotations',			default="True")
-parser.add_argument('--annots_data_path',	type=str,			help='path were data is stored',			default='test_data')
-parser.add_argument('--annots_format',		type=str,			help='path were data format is described',	default='cfg/pandas_annotations.txt')
+parser.add_argument('--annots_data_path',	type=str,			help='path were data is stored',			default='kitti_data/annotations')
+parser.add_argument('--annots_format',		type=str,			help='path were data format is described',	default='cfg/kitti_annotations.txt')
+
+# PointCloud
+parser.add_argument('--lidar',				type=str_to_bool,	help='flag to read lidar pointcloud',		default="False")
+parser.add_argument('--lidar_data_path',	type=str,			help='path were data is stored',			default='kitti_data/lidar')
+parser.add_argument('--lidar_res',			type=float,			help='float value for lidar_res',			default=0.3)
 
 # Grid Config
 parser.add_argument('--grid_res',	type=float,	help='float value for grid_res',	default=1.0)
@@ -40,6 +46,7 @@ args = parser.parse_args()
 app = dash.Dash()
 frame = 0
 frame_list = None
+lidar_frame_list = None
 
 # Annotations
 if args.annotations:
@@ -48,18 +55,23 @@ if args.annotations:
 	## Annots format
 	try:
 		with open(args.annots_format, "r") as annots_format_file:
-			annots_format = annots_format_file.readlines()[0]
-			annots_format.replace("\n","")
+			annots_format_lines = annots_format_file.readlines()
+			annots_format = annots_format_lines[0].replace("\n","")
 			annots_format = annots_format.split()
+			coordinate_system = annots_format_lines[1].replace("\n","")
 	except Exception as e:
 		raise
 
+#  LiDAR
+if args.lidar:
+	## Frame list
+	lidar_frame_list = os.listdir(args.lidar_data_path)
 
 # Definir los params del grid
 grid_res = args.grid_res # metros por cuadrado
 grid_size = args.grid_size # metros por cuadrado
-grid_x_min = 0. # coordenada x min del grid
-grid_x_max = grid_size*2. # coordenada x max del grid
+grid_x_min = -grid_size # coordenada x min del grid
+grid_x_max = grid_size # coordenada x max del grid
 grid_y_min = -grid_size # coordenada y min del grid
 grid_y_max = grid_size # coordenada y max del grid
 grid_z_min = 0. # coordenada y min del grid
@@ -78,9 +90,13 @@ camera = dict(
 
 fig.update_layout(scene_camera=camera)
 
-# Leer el archivo txt
-fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
+# draw first annotation
+if args.annotations:
+	fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, coordinate_system, frame_list, frame, fig)
 
+# draw first pointCloud
+if args.lidar:
+	fig.add_trace(utils.draw_lidar(args.lidar_data_path, lidar_frame_list, frame, args.lidar_res))
 
 # Dibujar el grid
 grid = go.Scatter3d(
@@ -127,6 +143,12 @@ app.layout = html.Div(children=
 					'margin': 'auto'
 				},
 				children=[
+				daq.ToggleSwitch(
+        			id='lidar-switch',
+        			value=False,
+					label='Draw LiDAR PointCloud',
+					labelPosition='top'
+    			),
 				html.Label('Tamaño del grid (metros)'),
 				dcc.Slider(
 					id='slider-grid-size',
@@ -164,16 +186,25 @@ app.layout = html.Div(children=
 # Definir la función que actualizará el graph
 @app.callback(
 	Output('cajas-3d', 'figure'),
-	[Input('slider-grid-size', 'value'), Input('slider-frame', 'value')])
-def update_grid_size(new_grid_size, frame_value):
+	[	Input('slider-grid-size', 'value'), 
+  		Input('slider-frame', 'value'),
+		Input('lidar-switch', 'value')
+	])
+def update_grid_size(new_grid_size, frame_value, lidar_switch):
 	# Actualizar los límites del grid
-	global grid_size, grid_x_max, grid_y_min, grid_y_max, grid_z_max, frame, camera
-	
+	global grid_size, grid_x_max, grid_y_min, grid_y_max, grid_z_max, frame, camera, lidar_frame_list
+
+	args.lidar = lidar_switch
+	if lidar_frame_list is None and args.lidar:
+		## Frame list
+		lidar_frame_list = os.listdir(args.lidar_data_path)
+
 	fig = go.Figure()
 	fig.update_layout(scene_camera=camera)
 
 	grid_size = new_grid_size
-	grid_x_max = grid_size * 2.
+	grid_x_min = -grid_size
+	grid_x_max = grid_size
 	grid_y_min = -grid_size
 	grid_y_max = grid_size
 	grid_z_max = grid_size
@@ -188,25 +219,22 @@ def update_grid_size(new_grid_size, frame_value):
 		autosize=False,
 	)
 
-	# Crear el trazo del nuevo grid
-	#new_grid = go.Scatter3d(
-	#	x=np.arange(grid_x_min, grid_x_max, grid_res),
-	#	y=np.arange(grid_y_min, grid_y_max, grid_res),
-	#	z=np.arange(grid_z_min, grid_z_max, grid_res),
-	#	mode='markers',
-	#	marker=dict(size=1, color='black')
-	#)
-
 	# Crear una nueva tupla de fig.data con el nuevo grid
-	#new_data = fig.data[:1] + (new_grid,) + fig.data[2:]
 	new_data = fig.data[:1] + fig.data[2:]
 
 	# Crear una nueva figura con la nueva tupla de fig.data
 	new_fig = go.Figure(data=new_data, layout=fig.layout)
 
-	new_fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, frame_list, frame_value, new_fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
-	frame = frame_value
+	# Draw current annotation
+	if args.annotations:
+		new_fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, coordinate_system, frame_list, frame_value, new_fig)
+	
+	# draw first pointCloud
+	if args.lidar:
+		new_fig.add_trace(utils.draw_lidar(args.lidar_data_path, lidar_frame_list, frame_value, args.lidar_res))
+
 	# Devolver la nueva figura
+	frame = frame_value
 	return new_fig
 
 #-------------------------------------------------------------------------------------------------

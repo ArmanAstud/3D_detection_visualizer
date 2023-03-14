@@ -1,1 +1,2 @@
 id x y z yaw h w l score label
+lidar_coordinate_system

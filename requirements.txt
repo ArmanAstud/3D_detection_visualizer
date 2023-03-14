@@ -136,3 +136,7 @@ xkit>=0.0.0
 yarg>=0.1.9
 zipp>=3.15.0
 zope.interface>=4.7.1
+pydeck>=0.8.0
+dash-deck>=0.0.1
+open3d>=0.17.0
+dash_daq>=0.5.0
