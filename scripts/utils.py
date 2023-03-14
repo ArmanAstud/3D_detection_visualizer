@@ -96,9 +96,11 @@ def return_vertex(df, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
 
 	return all_vertex, all_labels
 
-def draw_frame(data_dir, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
+def draw_annotations_frame(data_dir, annots_format, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max):
 
-	df = pd.read_csv(os.path.join(data_dir, frame_list[frame]), delimiter=' ')
+	if frame_list is None: return fig
+
+	df = pd.read_csv(os.path.join(data_dir, frame_list[frame]), delimiter=' ', names=annots_format)
 
 	# Calcular los vertices de la caja
 	all_vertex, all_labels = return_vertex(df, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
