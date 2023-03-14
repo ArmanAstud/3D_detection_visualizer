@@ -1,11 +1,11 @@
-import os
+# Copyright (C) 2023 Armando Astudillo
+
+import os, sys
 import numpy as np
 import pandas as pd
 
 import dash
-#import dash_core_components as dcc
 from dash import dcc
-#import dash_html_components as html
 from dash import html
 from dash.dependencies import Input, Output
 
@@ -13,25 +13,59 @@ import plotly.graph_objs as go
 
 import utils
 
+import argparse
+
+def str_to_bool(value):
+	if value.lower() in {'false', 'f', '0', 'no', 'n'}:
+		return False
+	elif value.lower() in {'true', 't', '1', 'yes', 'y'}:
+		return True
+
+parser = argparse.ArgumentParser(description='3D_detection_visualizer.', fromfile_prefix_chars='@')
+
+# Annotations
+parser.add_argument('--annotations',		type=str_to_bool,	help='flag to read annotations',			default="True")
+parser.add_argument('--annots_data_path',	type=str,			help='path were data is stored',			default='test_data')
+parser.add_argument('--annots_format',		type=str,			help='path were data format is described',	default='cfg/pandas_annotations.txt')
+
+# Grid Config
+parser.add_argument('--grid_res',	type=float,	help='float value for grid_res',	default=1.0)
+parser.add_argument('--grid_size',	type=float,	help='float value for grid_size',	default=50.0)
+
+
+args = parser.parse_args()
 
 #-------------------------------------------------------------------------------------------------
 # Crear la app de Dash
 app = dash.Dash()
-
-# Definir la ruta donde se encuentran los archivos txt
-data_dir = 'test_data'
-frame_list = os.listdir(data_dir)
 frame = 0
+frame_list = None
+
+# Annotations
+if args.annotations:
+	## Frame list
+	frame_list = os.listdir(args.annots_data_path)
+	## Annots format
+	try:
+		with open(args.annots_format, "r") as annots_format_file:
+			annots_format = annots_format_file.readlines()[0]
+			annots_format.replace("\n","")
+			annots_format = annots_format.split()
+	except Exception as e:
+		raise
+
 
 # Definir los params del grid
-grid_res = 1. # metros por cuadrado
-grid_size = 50. # metros por cuadrado
+grid_res = args.grid_res # metros por cuadrado
+grid_size = args.grid_size # metros por cuadrado
 grid_x_min = 0. # coordenada x min del grid
 grid_x_max = grid_size*2. # coordenada x max del grid
 grid_y_min = -grid_size # coordenada y min del grid
 grid_y_max = grid_size # coordenada y max del grid
 grid_z_min = 0. # coordenada y min del grid
 grid_z_max = grid_size # coordenada y max del grid
+
+
 
 # Crear la figura
 fig = go.Figure()
@@ -45,7 +79,7 @@ camera = dict(
 fig.update_layout(scene_camera=camera)
 
 # Leer el archivo txt
-fig = utils.draw_frame(data_dir, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
+fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, frame_list, frame, fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
 
 
 # Dibujar el grid
@@ -56,8 +90,7 @@ grid = go.Scatter3d(
 	mode='markers',
 	marker=dict(size=1, color='black')
 )
-# Remove trace
-#fig.data.remove(fig.data[0])
+
 #-------------------------------------------------------------------------------------------------
 # Definir el diseño de la aplicación
 app.layout = html.Div(children=
@@ -67,7 +100,7 @@ app.layout = html.Div(children=
 		
 		# First container: world with 3D bboxes
 		html.Div
-        ([
+		([
 	
 			html.H2(children='Visualización de cajas 3D'),
 
@@ -171,7 +204,7 @@ def update_grid_size(new_grid_size, frame_value):
 	# Crear una nueva figura con la nueva tupla de fig.data
 	new_fig = go.Figure(data=new_data, layout=fig.layout)
 
-	new_fig = utils.draw_frame(data_dir, frame_list, frame_value, new_fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
+	new_fig = utils.draw_annotations_frame(args.annots_data_path, annots_format, frame_list, frame_value, new_fig, grid_x_min, grid_x_max, grid_y_min, grid_y_max)
 	frame = frame_value
 	# Devolver la nueva figura
 	return new_fig
