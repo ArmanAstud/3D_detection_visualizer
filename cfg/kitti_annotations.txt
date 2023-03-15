@@ -1,2 +1,0 @@
-label truncation occlusion alpha xmin ymin xmax ymax h w l x y z yaw
-camera_coordinate_system
