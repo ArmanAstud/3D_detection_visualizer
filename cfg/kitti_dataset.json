@@ -1,0 +1,17 @@
+{	
+	"annotations":
+	{
+		"annotations_data_path": "kitti_data/annotations",
+		"annotations_format":   "label truncation occlusion alpha xmin ymin xmax ymax h w l x y z yaw",
+		"coordinate_system":    "camera_coordinate_system"
+	},
+	"calibs":
+	{
+		"calib_style": "frame",
+		"calibs_path": "kitti_data/calibs"
+	},
+	"lidar":
+	{
+		"lidar_data_path": "kitti_data/lidar"
+	}
+}

@@ -1,0 +1,17 @@
+{	
+	"annotations":
+	{
+		"annotations_data_path": "test_data/annotations",
+		"annotations_format":   "id x y z yaw h w l score label",
+		"coordinate_system":    "lidar_coordinate_system"
+	},
+	"calibs":
+	{
+		"calib_style": "global",
+		"calibs_path": "test_data/calibs"
+	},
+	"lidar":
+	{
+		"lidar_data_path": "test_data/lidar"
+	}
+}
